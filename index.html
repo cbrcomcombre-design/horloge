@@ -9,7 +9,7 @@
 <style>
 :root{--bg:#000;--fg:#fff;--dim:#c8c8c8;--top:#3a3a3c;--bot:#2c2c2e;--op:1;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:-apple-system,"Helvetica Neue",Helvetica,Arial,sans-serif;-webkit-user-select:none;user-select:none}
-#w{height:100%;display:-webkit-flex;display:flex;-webkit-flex-direction:column;flex-direction:column;-webkit-justify-content:center;justify-content:center;-webkit-align-items:center;align-items:center;opacity:var(--op)}
+#w{height:100%;display:-webkit-flex;display:flex;-webkit-flex-direction:column;flex-direction:column;-webkit-justify-content:center;justify-content:center;-webkit-align-items:center;align-items:center;opacity:var(--op);-webkit-transition:opacity 2s;transition:opacity 2s}
 #d{font-size:3.6vw;color:var(--dim);margin-bottom:5vw;text-align:center}
 #d:first-letter{text-transform:uppercase}
 #r{display:-webkit-flex;display:flex}
@@ -36,11 +36,56 @@ html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:
   var levels = [1, 0.6, 0.3, 0.12];
   var lvl = 0;
   var root = document.documentElement;
+
+  // ===== PLANNING D'ASSOMBRISSEMENT =====
+  // 0 = dimanche, 1 = lundi ... 6 = samedi ; null = pas d'horaire, toujours allumé
+  // on  = heure d'allumage le matin de ce jour
+  // off = heure d'extinction le soir de ce jour
+  var SCHEDULE = [
+    null,
+    { on: "07:00", off: "22:30" },
+    { on: "07:00", off: "22:30" },
+    { on: "07:00", off: "22:30" },
+    { on: "08:00", off: "22:30" },
+    { on: "07:00", off: "22:30" },
+    null
+  ];
+  var DIM_LEVEL = 0.03;   // 0 = noir total, 1 = pleine luminosité
+  var PEEK_LEVEL = 0.3;   // luminosité quand on touche l'écran la nuit
+  var PEEK_MS = 10000;    // durée de l'aperçu en millisecondes
+  var peekUntil = 0;
+  var curOp = -1;
+  function mins(s) {
+    var a = s.split(":");
+    return parseInt(a[0], 10) * 60 + parseInt(a[1], 10);
+  }
+  function isDimTime(n) {
+    var t = n.getDay() * 1440 + n.getHours() * 60 + n.getMinutes();
+    var W = 10080, d, s, nx, start, end;
+    for (d = 0; d < 7; d++) {
+      s = SCHEDULE[d];
+      if (!s) { continue; }
+      nx = SCHEDULE[(d + 1) % 7];
+      start = d * 1440 + mins(s.off);
+      end = (d + 1) * 1440 + (nx ? mins(nx.on) : 0);
+      if ((t >= start && t < end) || (t + W >= start && t + W < end)) { return true; }
+    }
+    return false;
+  }
+  function applyLevel() {
+    var n = new Date();
+    var o = levels[lvl];
+    if (isDimTime(n)) { o = (n.getTime() < peekUntil) ? PEEK_LEVEL : DIM_LEVEL; }
+    if (o !== curOp) {
+      curOp = o;
+      root.style.setProperty("--op", o);
+    }
+  }
   function p(n) { return n < 10 ? "0" + n : "" + n; }
   function $(id) { return document.getElementById(id); }
   function setLevel(i) {
     lvl = i;
-    root.style.setProperty("--op", levels[lvl]);
+    applyLevel();
     try { localStorage.setItem("lvl", String(lvl)); } catch (e) {}
   }
   try {
@@ -94,6 +139,7 @@ html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:
   }
   function tick() {
     var n = new Date();
+    applyLevel();
     showQuote(n);
     $("hh").textContent = p(n.getHours());
     $("mm").textContent = p(n.getMinutes());
@@ -142,9 +188,15 @@ html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:
   setInterval(loadWeather, 600000);
   tick();
   setInterval(tick, 1000);
+  setTimeout(function () { $("h").style.display = "none"; }, 20000);
   document.body.addEventListener("click", function () {
     $("h").style.display = "none";
-    setLevel((lvl + 1) % levels.length);
+    if (isDimTime(new Date())) {
+      peekUntil = new Date().getTime() + PEEK_MS;
+      applyLevel();
+    } else {
+      setLevel((lvl + 1) % levels.length);
+    }
   });
 })();
 </script>
