@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <style>
 :root{--bg:#000;--fg:#fff;--dim:#c8c8c8;--top:#3a3a3c;--bot:#2c2c2e;--op:1;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:-apple-system,"Helvetica Neue",Helvetica,Arial,sans-serif;-webkit-user-select:none;user-select:none}
+html,body{cursor:pointer;-webkit-tap-highlight-color:transparent;height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:-apple-system,"Helvetica Neue",Helvetica,Arial,sans-serif;-webkit-user-select:none;user-select:none}
 #w{height:100%;display:-webkit-flex;display:flex;-webkit-flex-direction:column;flex-direction:column;-webkit-justify-content:center;justify-content:center;-webkit-align-items:center;align-items:center;opacity:var(--op);-webkit-transition:opacity 2s;transition:opacity 2s}
 #d{font-size:3.6vw;color:var(--dim);margin-bottom:5vw;text-align:center}
 #d:first-letter{text-transform:uppercase}
@@ -42,11 +42,11 @@ html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:
   // on  = heure d'allumage le matin de ce jour
   // off = heure d'extinction le soir de ce jour
   var SCHEDULE = [
-    null,
+    { on: "00:00", off: "22:30" },
     { on: "07:00", off: "22:30" },
     { on: "07:00", off: "22:30" },
     { on: "07:00", off: "22:30" },
-    { on: "08:00", off: "22:30" },
+    { on: "08:00", off: "23:30" },
     { on: "07:00", off: "22:30" },
     null
   ];
@@ -189,15 +189,21 @@ html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:
   tick();
   setInterval(tick, 1000);
   setTimeout(function () { $("h").style.display = "none"; }, 20000);
-  document.body.addEventListener("click", function () {
+  var lastTap = 0;
+  function onTap() {
+    var now = new Date().getTime();
+    if (now - lastTap < 500) { return; }
+    lastTap = now;
     $("h").style.display = "none";
     if (isDimTime(new Date())) {
-      peekUntil = new Date().getTime() + PEEK_MS;
+      peekUntil = now + PEEK_MS;
       applyLevel();
     } else {
       setLevel((lvl + 1) % levels.length);
     }
-  });
+  }
+  document.addEventListener("touchstart", onTap);
+  document.addEventListener("click", onTap);
 })();
 </script>
 </body>
